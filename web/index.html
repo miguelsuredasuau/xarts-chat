@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#eeeae5">
+<title>Xarts Chart Desk</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231b4a6b'/%3E%3Cpath d='M8 23V14M13 23V9M18 23V17M23 23V12' stroke='%23eeeae5' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#composer-input">Skip to the question box</a>
+<header class="topbar">
+  <a class="brand" href="/" aria-label="Xarts chart desk, new conversation">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7"/><path d="M8 23V14M13 23V9M18 23V17M23 23V12"/></svg>
+    <span>xarts<b>.</b></span><em>chart desk</em>
+  </a>
+  <nav class="views" aria-label="Views">
+    <button type="button" data-view="chat" aria-pressed="true">Chat</button>
+    <button type="button" data-view="dataset" aria-pressed="false">Dataset</button>
+  </nav>
+  <div class="release" id="release" role="status" aria-live="polite">
+    <span class="dot"></span><span class="release-label">Resolving release…</span>
+  </div>
+  <div class="meta">
+    <span class="pill" id="dataset-pill" title="Dataset">—</span>
+    <span class="pill" id="spend-pill" title="Reported by claude -p for this conversation">$0.00 <small>reported</small></span>
+    <button class="ghost" id="new-chat" type="button">New chat</button>
+  </div>
+</header>
+
+<main class="desk" id="chat-view">
+  <section class="chat" aria-label="Conversation">
+    <div class="thread" id="thread" aria-live="polite">
+      <div class="welcome" id="welcome">
+        <p class="eyebrow">ASK THE LIBRARY</p>
+        <h1>Ask a question.<br><em>Get a chart.</em></h1>
+        <p class="lede">Claude reads the dataset, picks the chart form from the Xarts catalogue and renders it using the <strong>released</strong> library. Every number comes from SQL the server runs. You can inspect each one.</p>
+        <div class="tables" id="tables"></div>
+        <div class="suggestions" id="suggestions">
+          <button type="button">What drove the change in EBITDA from H1 2025 to H1 2026?</button>
+          <button type="button">How has monthly revenue evolved by region?</button>
+          <button type="button">Rank the product lines by revenue in 2026 so far.</button>
+          <button type="button">Compare customer segments by ARR and churn.</button>
+        </div>
+      </div>
+    </div>
+    <form class="composer" id="composer">
+      <label for="composer-input" class="sr">Ask for a chart</label>
+      <textarea id="composer-input" rows="1" placeholder="Ask for a chart about the Norte Analytics data…" maxlength="4000"></textarea>
+      <button type="submit" id="send" aria-label="Send">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      </button>
+    </form>
+    <p class="fineprint">Tools: read-only SQL + the Xarts catalogue and renderer. Spend ceiling per turn: <span id="budget">—</span>.</p>
+  </section>
+
+  <section class="stage" aria-label="Chart and evidence">
+    <div class="stage-head">
+      <div>
+        <p class="eyebrow" id="stage-eyebrow">THE CHART</p>
+        <h2 id="stage-title">Nothing rendered yet</h2>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Chart views">
+        <button role="tab" aria-selected="true" data-tab="chart">Chart</button>
+        <button role="tab" aria-selected="false" data-tab="data">Data &amp; SQL</button>
+        <button role="tab" aria-selected="false" data-tab="spec">Spec</button>
+        <button role="tab" aria-selected="false" data-tab="record">Record</button>
+      </div>
+    </div>
+    <div class="canvas" id="canvas">
+      <div class="panel active" data-panel="chart" role="tabpanel">
+        <div class="empty-chart" id="empty-chart">
+          <svg viewBox="0 0 320 180" aria-hidden="true">
+            <path class="grid" d="M20 150H300M20 110H300M20 70H300M20 30H300"/>
+            <rect class="b1" x="40" y="80" width="34" height="70"/>
+            <rect class="b2" x="92" y="40" width="34" height="40"/>
+            <rect class="b3" x="144" y="40" width="34" height="26"/>
+            <rect class="b3" x="196" y="66" width="34" height="30"/>
+            <rect class="b1" x="248" y="96" width="34" height="54"/>
+          </svg>
+          <p>Your chart will appear here. Its data, spec and run record appear in the other tabs.</p>
+        </div>
+        <figure class="figure" id="figure" hidden><img id="chart-img" alt=""></figure>
+      </div>
+      <div class="panel" data-panel="data" role="tabpanel"><div id="data-panel" class="scroll"></div></div>
+      <div class="panel" data-panel="spec" role="tabpanel"><pre id="spec-panel" class="code scroll"></pre></div>
+      <div class="panel" data-panel="record" role="tabpanel"><div id="record-panel" class="scroll"></div></div>
+    </div>
+    <div class="checks" id="checks" aria-label="Checks for this chart"></div>
+    <div class="feedback" id="feedback" hidden>
+      <div class="fb-row">
+        <span class="fb-q">Is this chart right?</span>
+        <button type="button" class="fb-btn" data-rate="up" aria-label="Good chart" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11v9H4v-9zM7 11l4-7c1.5 0 2.5 1 2.2 2.6L12.6 10H19a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 17.8 20H7"/></svg>
+        </button>
+        <button type="button" class="fb-btn" data-rate="down" aria-label="Something is wrong" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 13V4h3v9zM17 13l-4 7c-1.5 0-2.5-1-2.2-2.6l.6-3.4H5a2 2 0 0 1-2-2.3l1.2-6A2 2 0 0 1 6.2 4H17"/></svg>
+        </button>
+        <span class="fb-state" id="fb-state" role="status"></span>
+        <div class="fb-compare" id="fb-compare" hidden>
+          <span>Better than the previous version?</span>
+          <button type="button" data-pref="this">This one</button>
+          <button type="button" data-pref="previous">Previous</button>
+          <button type="button" data-pref="same">Same</button>
+        </div>
+      </div>
+      <form class="fb-detail" id="fb-detail" hidden>
+        <div class="chips" id="fb-reasons">
+          <button type="button" data-reason="numbers_wrong">Numbers wrong</button>
+          <button type="button" data-reason="units_format">Units / format</button>
+          <button type="button" data-reason="wrong_form">Wrong chart type</button>
+          <button type="button" data-reason="hard_to_read">Hard to read</button>
+          <button type="button" data-reason="title_misleading">Title misleading</button>
+          <button type="button" data-reason="missed_request">Didn't do what I asked</button>
+        </div>
+        <div class="fb-note"><input id="fb-note" maxlength="500" placeholder="What should it have been? (optional)"><button type="submit">Send</button></div>
+      </form>
+    </div>
+    <div class="strip" id="strip" aria-label="Charts in this conversation"></div>
+  </section>
+</main>
+
+<main class="dataset" id="dataset-view" hidden>
+  <aside class="ds-side">
+    <p class="eyebrow">NORTE ANALYTICS · SYNTHETIC</p>
+    <h2>The dataset</h2>
+    <p class="ds-about" id="ds-about"></p>
+    <ul class="ds-tables" id="ds-tables"></ul>
+    <p class="fineprint">Read-only. The chat's agent and this console use the same SQL guard: one SELECT, no writes.</p>
+  </aside>
+  <section class="ds-main">
+    <div class="ds-console">
+      <div class="ds-console-head">
+        <p class="eyebrow">SQL CONSOLE</p>
+        <span class="ds-hint">⌘/Ctrl + Enter to run · results capped at 1,000 rows</span>
+      </div>
+      <textarea id="ds-sql" spellcheck="false" rows="4">SELECT step, amount_eur, kind FROM ebitda_bridge ORDER BY step_order</textarea>
+      <div class="ds-actions">
+        <button type="button" id="ds-run" class="primary">Run query</button>
+        <div class="ds-snippets" id="ds-snippets">
+          <button type="button" data-sql="SELECT (SELECT amount_eur FROM ebitda_bridge WHERE step_order = 1) + (SELECT SUM(amount_eur) FROM ebitda_bridge WHERE kind = 'movement') - (SELECT amount_eur FROM ebitda_bridge WHERE step_order = (SELECT MAX(step_order) FROM ebitda_bridge)) AS bridge_residual_eur">Does the bridge reconcile?</button>
+          <button type="button" data-sql="SELECT month, SUM(revenue_eur) AS revenue_eur FROM revenue_monthly GROUP BY month ORDER BY month">Revenue per month</button>
+          <button type="button" data-sql="SELECT r.month, r.revenue, p.amount_eur AS pnl_revenue, r.revenue - p.amount_eur AS diff FROM (SELECT month, SUM(revenue_eur) AS revenue FROM revenue_monthly GROUP BY month) r JOIN pnl_monthly p ON p.month = r.month AND p.line = 'Revenue' ORDER BY r.month">Revenue table vs P&amp;L</button>
+        </div>
+      </div>
+      <p class="ds-status" id="ds-status" role="status"></p>
+    </div>
+    <div class="ds-grid-head"><p class="eyebrow" id="ds-grid-title">RESULT</p><div class="ds-pager" id="ds-pager"></div></div>
+    <div class="ds-grid" id="ds-grid"></div>
+  </section>
+</main>
+</body>
+</html>

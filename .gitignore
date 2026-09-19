@@ -1,0 +1,22 @@
+.cache/
+node_modules/
+runtime/
+runs/
+data/*.sqlite
+registry/packages/
+.DS_Store
+
+.local/
+.sandbox/
+
+# Local secrets and generated state
+.env
+.env.*
+!.env.example
+*.sqlite-*
+*.db
+*.db-*
+*.log
+*.pem
+*.key
+credentials*.json

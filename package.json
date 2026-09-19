@@ -1,0 +1,26 @@
+{
+  "name": "xarts-chat",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local chat that turns questions over a SQLite dataset into Xarts charts, rendered only by Promote-released (or labelled baseline) Xarts packages.",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "setup": "node scripts/build-db.mjs && node scripts/install-release.mjs baseline",
+    "db": "node scripts/build-db.mjs",
+    "release:baseline": "node scripts/install-release.mjs baseline",
+    "start": "bash scripts/start.sh",
+    "test": "node --no-warnings --test tests/unit.test.mjs",
+    "coverage": "node --no-warnings --import tsx scripts/coverage.mjs",
+    "feedback:export": "node scripts/export-feedback.mjs",
+    "quality": "node --no-warnings --import tsx scripts/quality-sweep.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.17.4",
+    "puppeteer-core": "^23.11.1",
+    "tsx": "^4.21.0",
+    "zod": "3.25.76"
+  }
+}

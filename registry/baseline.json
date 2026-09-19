@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "kind": "baseline",
+  "label": "Baseline 45c2b242 — not a Promote release",
+  "sourceSha": "45c2b2429a54e2b212619a1efaf4040bbd4107a3",
+  "packageHash": "20d8d4644752117d8cd55a068d3441492903016b1d2485478b8262d0f97ffbeb",
+  "version": "0.5.0-local.sha-1bb2bab64ae8",
+  "createdAt": "2026-09-19T10:05:01.147Z",
+  "note": "Last main commit whose SDK package builds. main@e3ebca5e fails `build-sdk` (first bad commit e9059b4b: TS2339 on augmented EscuchaDeclarada fields). Replaced automatically as soon as Promote activates a release."
+}
