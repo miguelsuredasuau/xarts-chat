@@ -76,6 +76,13 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .suggestions { display: grid; gap: 8px; }
 .suggestions button { text-align: left; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); font-size: 13px; transition: transform .2s var(--ease), border-color .2s var(--ease); }
 .suggestions button:hover { transform: translateX(3px); border-color: var(--petrol); }
+.history { margin: 0 0 22px; }
+.history summary { cursor: pointer; list-style: none; }
+.history ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.history button { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; padding: 9px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); font-size: 13px; }
+.history button:hover { border-color: var(--petrol); }
+.history button .msg-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history button small { font: 11px var(--mono); color: var(--muted); }
 
 /* ---------- messages ---------- */
 .msg { margin: 0 0 18px; animation: rise .35s var(--ease) both; }

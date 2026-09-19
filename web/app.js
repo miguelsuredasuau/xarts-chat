@@ -65,7 +65,53 @@ async function loadState() {
     }
     state.budget = s.agent?.budgetUsdPerTurn;
     $('#budget').textContent = state.budget != null ? `$${state.budget.toFixed(2)}` : '—';
+    renderHistory(s.runs ?? []);
   }
+}
+
+// ---------------- persisted runs ----------------
+const outcomeTone = o => o === 'rendered' ? 'green' : /warn|no_chart/.test(o) ? 'amber' : 'red';
+
+function renderHistory(runs) {
+  const box = $('#history'); const ul = $('#history-list');
+  if (!box || !ul) return;
+  ul.innerHTML = '';
+  box.hidden = !runs.length;
+  for (const r of runs) {
+    const li = el('li'); const b = el('button'); b.type = 'button'; b.title = r.runId;
+    b.append(el('span', `tag ${outcomeTone(r.outcome)}`, r.outcome.replace(/_/g, ' ')), el('span', 'msg-text', r.message), el('small', null, r.charts?.length ? r.charts.join(', ') : new Date(r.at).toLocaleTimeString()));
+    b.onclick = () => openRun(r.runId);
+    li.append(b); ul.append(li);
+  }
+}
+
+async function openRun(runId) {
+  if (state.busy) return;
+  const rec = await fetch(`/runs/${runId}/record.json`).then(r => r.ok ? r.json() : null).catch(() => null);
+  if (!rec) return;
+  const existing = state.charts.findIndex(c => c.runId === runId);
+  if (existing >= 0) { setTab('chart'); selectChart(existing); return; }
+  addUser(rec.request.message);
+  const a = newAssistant();
+  if (rec.finalText) a.text(rec.finalText);
+  let first = -1;
+  for (const r of rec.renders) {
+    const id = `${runId}/${r.artifact}`;
+    a.step(id, 'Render', r.chartId ?? '');
+    if (r.ok) {
+      const i = addChart(runId, r, null);
+      state.charts[i].recordReady = true;
+      if (first < 0) first = i;
+      a.finish(id, (r.checks ?? []).some(c => c.status === 'fail') ? 'err' : r.warnings?.length ? 'warn' : 'ok', `${r.chartId} · ${r.rows} rows · ${r.warnings?.length ? `${r.warnings.length} warning(s)` : 'no warnings'}`, { label: 'View', run: () => { setTab('chart'); selectChart(i); } });
+    } else a.finish(id, 'err', `${r.code ?? 'RENDER_FAILED'} — ${String(r.error ?? r.message ?? '').slice(0, 280)}`);
+  }
+  const tags = [[rec.outcome.replace(/_/g, ' '), outcomeTone(rec.outcome)], ['saved run', null]];
+  const defects = rec.signals.filter(s => s.kind === 'possible_library_defect').length;
+  if (defects) tags.push([`${defects} possible library defect${defects > 1 ? 's' : ''} → Promote`, 'red']);
+  if (rec.signals.some(s => s.kind === 'packaging_workaround')) tags.push(['packaging workaround active', 'amber']);
+  a.footer(tags);
+  a.done();
+  if (first >= 0) { setTab('chart'); selectChart(first); }
 }
 
 // ---------------- thread ----------------
