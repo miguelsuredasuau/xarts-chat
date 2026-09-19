@@ -12,7 +12,8 @@ const store = {
 const state = {
   conversationId: null,
   busy: false,
-  charts: [],       // { runId, artifact, chartId, title, svgUrl, rows, warnings, checks }
+  charts: [],       // { runId, conversationId, artifact, chartId, title, svgUrl, rows, warnings, checks, prev }
+  opened: new Map(), // runId -> { node, chart }  (replayed saved runs)
   selected: -1,
   spend: 0,
   tab: 'chart',
@@ -87,21 +88,27 @@ function renderHistory(runs) {
 
 async function openRun(runId) {
   if (state.busy) return;
+  const seen = state.opened.get(runId);
+  if (seen) {
+    if (seen.chart >= 0) { setTab('chart'); selectChart(seen.chart); }
+    seen.node.scrollIntoView({ block: 'start' });
+    return;
+  }
   const rec = await fetch(`/runs/${runId}/record.json`).then(r => r.ok ? r.json() : null).catch(() => null);
-  if (!rec) return;
-  const existing = state.charts.findIndex(c => c.runId === runId);
-  if (existing >= 0) { setTab('chart'); selectChart(existing); return; }
-  addUser(rec.request.message);
+  if (!rec || state.opened.has(runId)) return;
+  const user = addUser(rec.request.message);
   const a = newAssistant();
+  const entry = { node: user, chart: -1 };
+  state.opened.set(runId, entry);
   if (rec.finalText) a.text(rec.finalText);
   let first = -1;
   for (const r of rec.renders) {
     const id = `${runId}/${r.artifact}`;
     a.step(id, 'Render', r.chartId ?? '');
     if (r.ok) {
-      const i = addChart(runId, r, null);
+      const i = addChart(runId, r, null, rec.conversationId);
       state.charts[i].recordReady = true;
-      if (first < 0) first = i;
+      if (first < 0) first = entry.chart = i;
       a.finish(id, (r.checks ?? []).some(c => c.status === 'fail') ? 'err' : r.warnings?.length ? 'warn' : 'ok', `${r.chartId} · ${r.rows} rows · ${r.warnings?.length ? `${r.warnings.length} warning(s)` : 'no warnings'}`, { label: 'View', run: () => { setTab('chart'); selectChart(i); } });
     } else a.finish(id, 'err', `${r.code ?? 'RENDER_FAILED'} — ${String(r.error ?? r.message ?? '').slice(0, 280)}`);
   }
@@ -123,6 +130,7 @@ function addUser(text) {
   m.append(el('div', 'bubble', text));
   $('#thread').append(m);
   scrollThread();
+  return m;
 }
 
 function newAssistant() {
@@ -281,8 +289,9 @@ async function renderRecord(c) {
     : '<p>None yet. Rate the chart below the canvas.</p>';
 }
 
-function addChart(runId, p, input) {
-  const c = { runId, artifact: p.artifact, chartId: p.chartId, title: input?.spec?.header?.title ?? '', svgUrl: `/runs/${runId}/${p.artifact}.svg`, rows: p.rows, warnings: p.warnings, checks: p.checks };
+function addChart(runId, p, input, conversationId = state.conversationId) {
+  const prev = state.charts.findLastIndex(x => x.conversationId === conversationId);
+  const c = { runId, conversationId, artifact: p.artifact, chartId: p.chartId, title: input?.spec?.header?.title ?? '', svgUrl: `/runs/${runId}/${p.artifact}.svg`, rows: p.rows, warnings: p.warnings, checks: p.checks, prev: prev >= 0 ? state.charts[prev] : null };
   state.charts.push(c);
   const i = state.charts.length - 1;
   const b = el('button', 'thumb'); b.type = 'button'; b.title = c.title;
@@ -385,14 +394,14 @@ function renderFeedback(c, i) {
   $('#fb-detail').hidden = st.rating !== 'down' || st.sent;
   $('#fb-note').value = st.note ?? '';
   $('#fb-state').textContent = st.sent ? 'Saved for Promote · thank you' : '';
-  const prev = i > 0 ? state.charts[i - 1] : null;
+  const prev = c.prev;
   const cmp = $('#fb-compare');
   cmp.hidden = !prev || !c.recordReady || !prev.recordReady;
   cmp.querySelectorAll('[data-pref]').forEach(b => b.setAttribute('aria-pressed', String(st.pref === b.dataset.pref)));
 }
 
-async function sendFeedback(payload) {
-  const res = await fetch('/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ conversationId: state.conversationId, ...payload }) });
+async function sendFeedback(c, payload) {
+  const res = await fetch('/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ conversationId: c.conversationId, ...payload }) });
   const j = await res.json().catch(() => ({}));
   if (!j.ok) throw new Error(j.error ?? `HTTP ${res.status}`);
   return j;
@@ -409,15 +418,15 @@ $('#feedback').addEventListener('click', async e => {
   try {
     if (rate === 'up') {
       st.rating = 'up'; st.sent = true;
-      await sendFeedback({ kind: 'rating', runId: c.runId, artifact: c.artifact, value: 'up' });
+      await sendFeedback(c, { kind: 'rating', runId: c.runId, artifact: c.artifact, value: 'up' });
     } else if (rate === 'down') {
       st.rating = 'down'; st.sent = false;
     } else if (reason) {
       st.reasons.has(reason) ? st.reasons.delete(reason) : st.reasons.add(reason);
     } else if (pref) {
-      const prev = state.charts[state.selected - 1];
+      const prev = c.prev; if (!prev) return;
       st.pref = pref;
-      await sendFeedback({ kind: 'preference', runId: c.runId, artifact: c.artifact, value: pref, vs: { runId: prev.runId, artifact: prev.artifact } });
+      await sendFeedback(c, { kind: 'preference', runId: c.runId, artifact: c.artifact, value: pref, vs: { runId: prev.runId, artifact: prev.artifact } });
       $('#fb-state').textContent = 'Preference saved for Promote';
       renderFeedback(c, state.selected);
       return;
@@ -432,7 +441,7 @@ $('#fb-detail').addEventListener('submit', async e => {
   const st = fbState.get(fbKey(c));
   st.note = $('#fb-note').value;
   try {
-    await sendFeedback({ kind: 'rating', runId: c.runId, artifact: c.artifact, value: 'down', reasons: [...st.reasons], note: st.note });
+    await sendFeedback(c, { kind: 'rating', runId: c.runId, artifact: c.artifact, value: 'down', reasons: [...st.reasons], note: st.note });
     st.sent = true;
     renderFeedback(c, state.selected);
   } catch (err) { $('#fb-state').textContent = `Not saved: ${err.message}`; }
