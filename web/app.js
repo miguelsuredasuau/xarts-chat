@@ -45,7 +45,8 @@ function renderRelease(r) {
   const rel = r.release;
   if(rel.kind==='fixture'){ label.textContent='UI SANDBOX · no model or SDK';box.title='Synthetic fixtures. Not release evidence.';return; }
   box.classList.add(rel.kind);
-  const shims = rel.shims?.length ? ` · ${rel.shims.length} workaround${rel.shims.length > 1 ? 's' : ''}` : '';
+  const count = rel.shims?.length ?? 0;
+  const shims = rel.kind === 'promote' || count ? ` · ${count} workaround${count !== 1 ? 's' : ''}` : '';
   label.innerHTML = rel.kind === 'promote'
     ? `<strong>Promote release</strong> ${esc(rel.releaseId)} · <code>${esc(rel.sourceSha.slice(0, 8))}</code>${shims}`
     : `<strong>Baseline</strong> <code>${esc(rel.sourceSha.slice(0, 8))}</code> · not a Promote release${shims}`;
@@ -113,7 +114,7 @@ async function openRun(runId) {
       a.finish(id, (r.checks ?? []).some(c => c.status === 'fail') ? 'err' : r.warnings?.length ? 'warn' : 'ok', `${r.chartId} · ${r.rows} rows · ${r.warnings?.length ? `${r.warnings.length} warning(s)` : 'no warnings'}`, { label: 'View', run: () => { setTab('chart'); selectChart(i); } });
     } else a.finish(id, 'err', `${r.code ?? 'RENDER_FAILED'} — ${String(r.error ?? r.message ?? '').slice(0, 280)}`);
   }
-  const tags = [[rec.outcome.replace(/_/g, ' '), outcomeTone(rec.outcome)], ['saved run', null]];
+  const tags = [[rec.outcome.replace(/_/g, ' '), outcomeTone(rec.outcome)], [rec.replay ? 'exact replay · same SQL' : 'saved run', null], [rec.release.kind === 'promote' ? `Promote · ${rec.release.sourceSha?.slice(0,8)}` : `Baseline · ${rec.release.sourceSha?.slice(0,8)}`, null]];
   const defects = rec.signals.filter(s => s.kind === 'possible_library_defect').length;
   if (defects) tags.push([`${defects} possible library defect${defects > 1 ? 's' : ''} → Promote`, 'red']);
   if (rec.signals.some(s => s.kind === 'packaging_workaround')) tags.push(['packaging workaround active', 'amber']);
@@ -554,5 +555,8 @@ $('#suggestions').addEventListener('click', e => { if (e.target.matches('button'
 document.querySelectorAll('.tabs [role=tab]').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
 $('#new-chat').addEventListener('click', () => { store.del('xc-conv'); location.reload(); });
 
-loadState();
+loadState().then(() => {
+  const savedRun = new URLSearchParams(location.search).get('run');
+  if (savedRun && /^[0-9TZ]+-[a-f0-9]{8}$/.test(savedRun)) return openRun(savedRun);
+});
 input.focus();

@@ -75,3 +75,11 @@ Ownership handback: before this ownership agreement was supplied, Codex added re
 Current backend status (2026-09-19): outbox import, local receipts and real Devin dispatch are implemented. One F1 session returned a candidate and has stopped. Promote now schedules independent SDK build, protected standalone consumer checks and replay of a saved SQL-backed request before guarded registry activation. The F2 candidate has passed nine compiler tests; Docker interruption prevented the complete package check, so no repaired release is active yet. These are implementation changes, not a wire-contract revision.
 
 Chat startup handoff: Promote provides `scripts/start-chat.mjs <chat-root>` to set `PROMOTE_REGISTRY` to its `.local/registry` without changing Claude-owned release resolution. The local chat has been connected to that registry; it continues using the labelled baseline until a release passes every required gate. The scheduler can watch a configured repair branch, freezes each fetched SHA and verifies it before activation. No additional Devin session or spending allowance is implied by verification.
+
+## v1.2 exact release replay (2026-09-20)
+
+Promote can replay a saved chart through the real chat MCP `chart_render` tool after publishing an accepted package. It reuses the original spec and SQL; the MCP server executes the SQL, and Promote requires the original data hash. It does not provide `spec.data` or call Claude.
+
+The existing `xarts-chat/run-record@1` wire schema remains backward-compatible. Optional `replay` metadata records `sourceRunId`, `sourceArtifact`, `initiatedBy: promote_controller`, `dataHash` and `releaseId`. The runner is explicitly `promote-exact-replay`, with `model: null` and `usage: null`; no Claude cost is invented. Records, progress and outbox use the existing durable writers. These observations establish chat consumption, not a substitute for Promote's independent release gates.
+
+The chat supports read-only links `/?run=<savedRunId>` for recording and inspection. Opening one shows saved artifacts without calling an agent. The active-release pill always describes the package for the next request; saved-run tags identify the historical package of the selected record.
