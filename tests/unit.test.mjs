@@ -116,7 +116,16 @@ test('a result the server logged as success but Claude received as malformed is 
 });
 
 // ---------------- label read-back ----------------
-const { parseLabel, readbackChecks } = await import('../lib/inspect.mjs');
+const { parseLabel, readbackChecks, polygonArea, polygonIntersectionArea } = await import('../lib/inspect.mjs');
+test('rotated labels overlap by their oriented box, not their axis-aligned envelope', () => {
+  const box = (x, y, w, h) => [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+  assert.equal(polygonArea(box(0, 0, 10, 10)), 100);
+  assert.equal(polygonIntersectionArea(box(0, 0, 10, 10), box(5, 5, 10, 10)), 25);
+  assert.equal(polygonIntersectionArea(box(0, 0, 10, 10), box(20, 20, 10, 10)), 0);
+  // Two 100x10 runs rotated -45deg, anchored 30px apart: their envelopes overlap, the runs don't.
+  const tilt = (ox) => [[ox, 0], [ox + 70.71, -70.71], [ox + 77.78, -63.64], [ox + 7.07, 7.07]];
+  assert.ok(polygonIntersectionArea(tilt(0), tilt(30)) < 1);
+});
 test('labels parse under their locale', () => {
   assert.deepEqual(parseLabel('105.908', 'en-GB'), { value: 105.908, decimals: 3, suffix: null });
   assert.deepEqual(parseLabel('105.908', 'es-ES'), { value: 105908, decimals: 0, suffix: null });
