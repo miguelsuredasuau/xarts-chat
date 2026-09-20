@@ -15,7 +15,9 @@
     "test": "node --no-warnings --test tests/unit.test.mjs",
     "coverage": "node --no-warnings --import tsx scripts/coverage.mjs",
     "feedback:export": "node scripts/export-feedback.mjs",
-    "quality": "node --no-warnings --import tsx scripts/quality-sweep.mjs"
+    "quality": "node --no-warnings --import tsx scripts/quality-sweep.mjs",
+    "sandbox": "node --no-warnings scripts/sandbox.mjs",
+    "test:app": "node --no-warnings --test tests/browser.test.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.17.4",

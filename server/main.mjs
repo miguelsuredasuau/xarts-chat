@@ -15,6 +15,8 @@ import { buildRecord, writeRecord, listRuns } from './record.mjs';
 import { runSelect } from '../lib/sql.mjs';
 import { recordFeedback, feedbackFor, FeedbackError } from '../lib/feedback.mjs';
 
+const sandbox = process.env.XARTS_CHAT_SANDBOX === 'ui-fixture';
+if (sandbox && (!process.env.XARTS_CHAT_RUNS || !process.env.XARTS_CHAT_DB)) throw Error('Sandbox requires isolated runs and database');
 const PORT = Number(process.env.PORT ?? 4320);
 const HOST = '127.0.0.1';
 const WEB = join(ROOT, 'web');
@@ -29,6 +31,7 @@ function send(res, status, body, type = 'application/json; charset=utf-8', extra
 }
 
 function currentRelease() {
+  if(sandbox) return {ok:true,release:{kind:"fixture",label:"UI sandbox",sourceSha:"0".repeat(40),packageHash:"0".repeat(64),shims:[]}};
   try {
     const r = resolveRelease();
     return { ok: true, release: describeRelease(r) };
@@ -105,6 +108,15 @@ async function chat(req, res) {
   emit({ t: 'run', runId, conversationId });
   let release;
   try {
+    if(sandbox) {
+      const {fixtureRun,sandboxRelease}=await import('./sandbox-fixtures.mjs');
+      emit({t:'release',release:sandboxRelease});
+      emit({t:'text',text:'Sandbox UI fixture. No model or SDK ran.'});
+      const {record,render}=fixtureRun({runId,conversationId,message,startedAt});
+      emit({t:'tool-result',name:'chart_render',payload:{...render,ok:true},svgUrl:`/runs/${runId}/chart-1.svg`});
+      emit({t:'record',runId,outcome:record.outcome,signals:[],usage:null,renders:1});
+      return;
+    }
     const resolved = resolveRelease();
     emit({ t: 'status', text: 'Checking the Xarts release…' });
     const pkgDir = ensureInstalled(resolved);
@@ -200,11 +212,13 @@ const server = createServer(async (req, res) => {
       return send(res, 200, {
         release: currentRelease(), dataset: datasetInfo(), runs: listRuns(30),
         promoteRegistry: PROMOTE_REGISTRY ? { configured: true, path: PROMOTE_REGISTRY } : { configured: false },
-        agent: { runner: 'claude -p', model: MODEL ?? 'claude default', budgetUsdPerTurn: BUDGET_USD },
+        testMode: sandbox ? 'ui-fixture' : null,
+        agent: sandbox ? {runner:'fixture',model:null,budgetUsdPerTurn:0} : { runner: 'claude -p', model: MODEL ?? 'claude default', budgetUsdPerTurn: BUDGET_USD },
       });
     }
     const font = url.pathname.match(/^\/fonts\/(Inter_18pt-(?:Regular|Medium|SemiBold|Bold)\.ttf)$/);
     if (font) {
+      if(sandbox) return send(res,204,"");
       const dir = ensureInstalled(resolveRelease());
       return send(res, 200, readFileSync(join(dir, 'fonts', 'inter', font[1])), 'font/ttf', { 'Cache-Control': 'max-age=86400' });
     }
@@ -220,6 +234,6 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   const r = currentRelease();
-  console.log(`xarts-chat on http://${HOST}:${PORT}`);
+  console.log(`xarts-chat on http://${HOST}:${server.address().port}`);
   console.log(r.ok ? `release: ${r.release.label} · ${r.release.packageHash.slice(0, 12)}${r.release.shims.length ? ` · shims: ${r.release.shims.map(s => s.id).join(', ')}` : ''}` : `release: UNAVAILABLE — ${r.error.message}`);
 });

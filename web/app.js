@@ -43,6 +43,7 @@ function renderRelease(r) {
     return;
   }
   const rel = r.release;
+  if(rel.kind==='fixture'){ label.textContent='UI SANDBOX · no model or SDK';box.title='Synthetic fixtures. Not release evidence.';return; }
   box.classList.add(rel.kind);
   const shims = rel.shims?.length ? ` · ${rel.shims.length} workaround${rel.shims.length > 1 ? 's' : ''}` : '';
   label.innerHTML = rel.kind === 'promote'
@@ -95,7 +96,7 @@ async function openRun(runId) {
     return;
   }
   const rec = await fetch(`/runs/${runId}/record.json`).then(r => r.ok ? r.json() : null).catch(() => null);
-  if (!rec || state.opened.has(runId)) return;
+  if (!rec || state.busy || state.opened.has(runId)) return;
   const user = addUser(rec.request.message);
   const a = newAssistant();
   const entry = { node: user, chart: -1 };

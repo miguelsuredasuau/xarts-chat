@@ -20,3 +20,6 @@ registry/packages/
 *.pem
 *.key
 credentials*.json
+
+# Local self-test screenshots and reports
+.local/
